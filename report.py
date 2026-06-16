@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
 LLM-friendly analytics reporting tool.
-Queries the SQLite database and outputs structured markdown.
+Queries the SQLite database and outputs structured markdown (default) or JSON.
 
 Usage:
-    uv run report.py summary              # Latest snapshot overview
-    uv run report.py summary --days 30    # Summary for last 30 days
-    uv run report.py trends               # Key metric trends
-    uv run report.py seo                  # SEO opportunities and rankings
-    uv run report.py content              # Content performance by theme
-    uv run report.py conversions          # Source and page conversion data
-    uv run report.py query "SELECT ..."   # Run arbitrary SQL
-    uv run report.py brief                # Full brief for LLM context
+    uv run report.py freshness                     # Check if data is current
+    uv run report.py summary --days 30             # KPI overview
+    uv run report.py trends                        # Metric trends across periods
+    uv run report.py seo --days 30                 # SEO opportunities
+    uv run report.py content                       # Content performance by theme
+    uv run report.py conversions --days 30         # Conversion data
+    uv run report.py brief --days 30               # Full brief (all reports)
+    uv run report.py query "SELECT ..." --json     # Raw SQL, JSON output
 """
 
 # /// script
@@ -437,25 +437,71 @@ def cmd_conversions(args):
 def cmd_query(args):
     conn = get_conn()
     sql = args.sql
+    use_json = getattr(args, "json", False)
     try:
         rows = conn.execute(sql).fetchall()
         if not rows:
             print("No results.")
             return
         keys = rows[0].keys()
-        print("| " + " | ".join(keys) + " |")
-        print("|" + "|".join("---" for _ in keys) + "|")
-        for row in rows:
-            vals = []
-            for k in keys:
-                v = row[k]
-                if isinstance(v, str) and len(v) > 80:
-                    v = v[:77] + "..."
-                vals.append(str(v) if v is not None else "NULL")
-            print("| " + " | ".join(vals) + " |")
+        if use_json:
+            result = []
+            for row in rows:
+                d = {}
+                for k in keys:
+                    v = row[k]
+                    # Try to parse JSON columns
+                    if isinstance(v, str) and v.startswith(("{", "[")):
+                        try:
+                            v = json.loads(v)
+                        except json.JSONDecodeError:
+                            pass
+                    d[k] = v
+                result.append(d)
+            print(json.dumps(result, indent=2))
+        else:
+            print("| " + " | ".join(keys) + " |")
+            print("|" + "|".join("---" for _ in keys) + "|")
+            for row in rows:
+                vals = []
+                for k in keys:
+                    v = row[k]
+                    if isinstance(v, str) and len(v) > 80:
+                        v = v[:77] + "..."
+                    vals.append(str(v) if v is not None else "NULL")
+                print("| " + " | ".join(vals) + " |")
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         raise SystemExit(1)
+
+
+def cmd_freshness(args):
+    conn = get_conn()
+    latest = conn.execute("SELECT date FROM snapshots ORDER BY date DESC LIMIT 1").fetchone()
+    oldest = conn.execute("SELECT date FROM snapshots ORDER BY date ASC LIMIT 1").fetchone()
+    count = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+    has_suggest = conn.execute("SELECT COUNT(*) FROM snapshots WHERE suggest IS NOT NULL AND suggest != '{}'").fetchone()[0]
+    has_ghost = conn.execute("SELECT COUNT(*) FROM snapshots WHERE ghost != '{}'").fetchone()[0]
+
+    latest_date = latest[0] if latest else "none"
+    oldest_date = oldest[0] if oldest else "none"
+    today = datetime.now().strftime("%Y-%m-%d")
+    stale = latest_date < today if latest else True
+
+    print(f"# Data Freshness")
+    print(f"- Latest snapshot: {latest_date}")
+    print(f"- Oldest snapshot: {oldest_date}")
+    print(f"- Total snapshots: {count}")
+    print(f"- Snapshots with Ghost data: {has_ghost}")
+    print(f"- Snapshots with suggest data: {has_suggest}")
+    print(f"- Today: {today}")
+    print(f"- Stale: {'YES — run collection or pull from repo' if stale else 'No — data is current'}")
+    if stale:
+        print()
+        print("To update:")
+        print("  git -C /Users/luisnatera/Documents/tynstudio/photo-analytics pull")
+        print("  # or collect fresh data:")
+        print("  uv run site-report.py --days 7 --save")
 
 
 def cmd_brief(args):
@@ -495,9 +541,12 @@ def main():
 
     p = sub.add_parser("query", help="Run arbitrary SQL")
     p.add_argument("sql", help="SQL query")
+    p.add_argument("--json", action="store_true", help="Output as JSON (with parsed JSON columns)")
 
     p = sub.add_parser("brief", help="Full brief for LLM context")
     p.add_argument("--days", type=int, help="Period in days (default: 30)")
+
+    p = sub.add_parser("freshness", help="Check data freshness and how to update")
 
     args = parser.parse_args()
 
@@ -509,6 +558,7 @@ def main():
         "conversions": cmd_conversions,
         "query": cmd_query,
         "brief": cmd_brief,
+        "freshness": cmd_freshness,
     }
 
     if args.command in commands:
