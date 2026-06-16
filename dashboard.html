@@ -32,6 +32,8 @@ body {
 .header-left { display: flex; align-items: baseline; gap: 0.6rem; }
 .header h1 { font-size: 0.95rem; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; }
 .header .meta { color: #aaa; font-size: 0.7rem; }
+.refresh-btn { background: transparent; border: 1px solid rgba(0,0,0,0.08); color: #aaa; padding: 0.2rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.6rem; text-decoration: none; transition: all 0.15s; margin-left: 0.4rem; }
+.refresh-btn:hover { border-color: rgba(0,0,0,0.2); color: #555; }
 .controls { display: flex; align-items: center; gap: 0.2rem; }
 .controls .sep { color: #ddd; margin: 0 0.4rem; }
 .controls .label { color: #aaa; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 0.2rem; }
@@ -94,7 +96,8 @@ tr:hover td { color: #1a1a1a; }
 <div class="header">
 <div class="header-left">
     <h1>luisnatera.photo</h1>
-    <span class="meta">2026-06-16 13:35 · 366 pts</span>
+    <span class="meta">2026-06-16 13:38 · 366 pts</span>
+    <a href="https://github.com/Tyn-Studio/photo-analytics/actions/workflows/analytics.yml" target="_blank" class="refresh-btn" title="Trigger data refresh on GitHub">Refresh</a>
 </div>
 <div class="controls">
     <span class="label">Range</span>
