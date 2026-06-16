@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>luisnatera.photo — Analytics Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 2rem; }
+h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+.subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.85rem; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; }
+.card h2 { font-size: 0.9rem; color: #8b949e; margin-bottom: 1rem; }
+canvas { max-height: 220px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th { text-align: left; color: #8b949e; padding: 0.5rem 0.75rem; border-bottom: 1px solid #30363d; }
+td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #21262d; }
+.delta { color: #8b949e; font-size: 0.8rem; }
+.delta.up { color: #3fb950; }
+.delta.down { color: #f85149; }
+.full { grid-column: 1 / -1; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<h1>luisnatera.photo</h1>
+<p class="subtitle">Analytics Dashboard — updated 2026-06-16 09:47 — 1 data points</p>
+
+<div class="grid">
+
+<div class="card">
+<h2>Traffic</h2>
+<canvas id="trafficChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Search Performance</h2>
+<canvas id="searchChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Newsletter</h2>
+<canvas id="newsletterChart"></canvas>
+</div>
+
+<div class="card">
+<h2>Sources (latest)</h2>
+<canvas id="sourcesChart"></canvas>
+</div>
+
+<div class="card full">
+<h2>Summary</h2>
+<table>
+<tr><th>Metric</th><th>Latest</th><th>Previous</th><th>Change</th></tr>
+<tr><td>Visitors</td><td>619</td><td>N/A</td><td></td></tr>
+<tr><td>Pageviews</td><td>753</td><td>N/A</td><td></td></tr>
+<tr><td>Bounce Rate</td><td>90%</td><td>N/A</td><td></td></tr>
+<tr><td>Search Impressions</td><td>758</td><td>N/A</td><td></td></tr>
+<tr><td>Search Position (avg)</td><td>7.8</td><td>N/A</td><td></td></tr>
+<tr><td>Members</td><td>91</td><td>N/A</td><td></td></tr>
+<tr><td>Open Rate</td><td>59.0%</td><td>N/A</td><td></td></tr>
+<tr><td>Subscribers</td><td>84</td><td>N/A</td><td></td></tr>
+</table>
+</div>
+
+</div>
+
+<script>
+const dates = ["2026-06-16"];
+const chartOpts = {
+    responsive: true,
+    plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+    scales: {
+        x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+        y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }
+    }
+};
+
+new Chart(document.getElementById('trafficChart'), {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [
+            { label: 'Visitors', data: [619], borderColor: '#58a6ff', tension: 0.3, pointRadius: 3 },
+            { label: 'Pageviews', data: [753], borderColor: '#3fb950', tension: 0.3, pointRadius: 3 }
+        ]
+    },
+    options: chartOpts
+});
+
+new Chart(document.getElementById('searchChart'), {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [
+            { label: 'Impressions', data: [758], borderColor: '#d2a8ff', tension: 0.3, yAxisID: 'y', pointRadius: 3 },
+            { label: 'Clicks', data: [7], borderColor: '#f0883e', tension: 0.3, yAxisID: 'y', pointRadius: 3 },
+            { label: 'Position', data: [7.8430079155672825], borderColor: '#8b949e', tension: 0.3, yAxisID: 'y1', pointRadius: 3 }
+        ]
+    },
+    options: {
+        ...chartOpts,
+        scales: {
+            ...chartOpts.scales,
+            y1: { position: 'right', reverse: true, ticks: { color: '#8b949e', font: { size: 10 } }, grid: { display: false } }
+        }
+    }
+});
+
+new Chart(document.getElementById('newsletterChart'), {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [
+            { label: 'Members', data: [91], borderColor: '#58a6ff', tension: 0.3, pointRadius: 3 },
+            { label: 'Subscribers', data: [84], borderColor: '#3fb950', tension: 0.3, pointRadius: 3 }
+        ]
+    },
+    options: chartOpts
+});
+
+const srcData = { labels: ["Instagram", "Direct / None", "LinkedIn", "luis-natera-newsletter", "Google", "Facebook", "Mastodon", "tyn-studio.ghost.io"], values: [524, 50, 16, 8, 5, 4, 4, 4] };
+new Chart(document.getElementById('sourcesChart'), {
+    type: 'doughnut',
+    data: {
+        labels: srcData.labels || [],
+        datasets: [{ data: srcData.values || [], backgroundColor: ['#58a6ff','#3fb950','#d2a8ff','#f0883e','#f85149','#8b949e','#79c0ff','#56d364'] }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'right', labels: { color: '#8b949e', font: { size: 11 } } } } }
+});
+</script>
+</body>
+</html>

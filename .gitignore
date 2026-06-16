@@ -1,0 +1,4 @@
+.env
+client_secret.json
+gsc_token.json
+__pycache__/
