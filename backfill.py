@@ -194,17 +194,17 @@ def main():
     conn = init_db()
     service = get_gsc_service()
 
-    # Generate weekly windows going back ~12 months
+    # Generate daily windows going back ~12 months
     # GSC data is available with a 2-day delay, up to 16 months back
     today = datetime.now()
     windows = []
 
-    # Weekly snapshots for the last 52 weeks
-    for weeks_ago in range(0, 52):
-        end = today - timedelta(days=2 + weeks_ago * 7)
-        start = end - timedelta(days=7)
+    # Daily snapshots for the last 365 days
+    for days_ago in range(0, 365):
+        end = today - timedelta(days=2 + days_ago)
+        start = end - timedelta(days=1)
         label = end.strftime("%Y-%m-%d")
-        windows.append((label, 7, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")))
+        windows.append((label, 1, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")))
 
     windows.reverse()  # oldest first
 

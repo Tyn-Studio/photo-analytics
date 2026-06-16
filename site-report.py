@@ -27,6 +27,8 @@ import os
 import sqlite3
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -70,13 +72,33 @@ def ghost_range(days: int) -> str:
 
 def get_ghost_data(days: int) -> dict:
     r = ghost_range(days)
-    return {
+    data = {
         "overview": run_ghst(["stats", "overview", "--range", r]),
         "web": run_ghst(["stats", "web", "--range", r]),
         "posts": run_ghst(["stats", "posts", "--range", r]),
         "email": run_ghst(["stats", "email", "--range", r]),
         "growth": run_ghst(["stats", "growth", "--range", r]),
     }
+
+    # Enrich posts with tags by fetching each post individually by ID
+    if data.get("posts") and data["posts"].get("posts"):
+        for post in data["posts"]["posts"]:
+            pid = post.get("post_id", "")
+            if not pid:
+                continue
+            try:
+                r = subprocess.run(
+                    ["ghst", "api", f"posts/{pid}", "--query", "include=tags&fields=title,tags"],
+                    capture_output=True, text=True
+                )
+                if r.returncode == 0 and r.stdout.strip():
+                    pdata = json.loads(r.stdout)
+                    p = pdata.get("posts", [{}])[0]
+                    post["tags"] = [t["name"] for t in p.get("tags", [])]
+            except Exception:
+                pass
+
+    return data
 
 
 # --- Plausible ---
@@ -115,9 +137,9 @@ def get_plausible_data(days: int) -> dict:
     if r and r.get("results"):
         data["aggregate"] = r["results"][0] if r["results"] else {}
 
-    # Top pages
+    # Top pages (with engagement metrics)
     r = plausible_query(api_key, site_id, {
-        "metrics": ["visitors", "pageviews"],
+        "metrics": ["visitors", "pageviews", "bounce_rate", "visit_duration"],
         "date_range": period,
         "dimensions": ["event:page"],
         "order_by": [["visitors", "desc"]],
@@ -201,6 +223,28 @@ def get_plausible_data(days: int) -> dict:
     })
     if r:
         data["signups"] = r.get("results", [])
+
+    # Signups by source
+    r = plausible_query(api_key, site_id, {
+        "metrics": ["visitors"],
+        "date_range": period,
+        "dimensions": ["visit:source"],
+        "filters": [["is", "event:name", ["Signup", "Signup-Confirmed"]]],
+        "order_by": [["visitors", "desc"]],
+    })
+    if r:
+        data["signups_by_source"] = r.get("results", [])
+
+    # Signups by page
+    r = plausible_query(api_key, site_id, {
+        "metrics": ["visitors"],
+        "date_range": period,
+        "dimensions": ["event:page"],
+        "filters": [["is", "event:name", ["Signup", "Signup-Confirmed"]]],
+        "order_by": [["visitors", "desc"]],
+    })
+    if r:
+        data["signups_by_page"] = r.get("results", [])
 
     return data
 
@@ -309,6 +353,38 @@ def met(row: dict, index: int = 0) -> int | float:
     """Extract a metric value from a Plausible result row."""
     metrics = row.get("metrics", [])
     return metrics[index] if index < len(metrics) else 0
+
+
+# --- Google Suggest (related searches) ---
+
+SUGGEST_SEEDS = [
+    "street photography",
+    "photography for developers",
+    "photography newsletter",
+    "photography workflow",
+    "photography without instagram",
+    "creative photography",
+]
+
+
+def google_suggest(query: str) -> list[str]:
+    try:
+        url = "https://suggestqueries.google.com/complete/search?client=firefox&q=" + urllib.parse.quote(query)
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = json.loads(resp.read())
+        return data[1] if len(data) > 1 else []
+    except Exception:
+        return []
+
+
+def get_suggest_data() -> dict:
+    results = {}
+    for seed in SUGGEST_SEEDS:
+        suggestions = google_suggest(seed)
+        if suggestions:
+            results[seed] = suggestions[:8]
+    return results
 
 
 def format_report(ghost: dict, gsc: dict, plausible: dict, days: int) -> str:
@@ -688,6 +764,9 @@ def main():
     print("  Fetching Google Search Console...", file=sys.stderr)
     gsc = get_gsc_data(args.days)
 
+    print("  Fetching search suggestions...", file=sys.stderr)
+    suggest = get_suggest_data()
+
     if args.save:
         db_path = Path(__file__).parent / args.db
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -698,13 +777,19 @@ def main():
                 days INTEGER,
                 ghost TEXT,
                 plausible TEXT,
-                gsc TEXT
+                gsc TEXT,
+                suggest TEXT
             )
         """)
+        # Migrate: add suggest column if missing
+        try:
+            conn.execute("ALTER TABLE snapshots ADD COLUMN suggest TEXT")
+        except sqlite3.OperationalError:
+            pass
         today = datetime.now().strftime("%Y-%m-%d")
         conn.execute(
-            "INSERT OR REPLACE INTO snapshots (date, days, ghost, plausible, gsc) VALUES (?, ?, ?, ?, ?)",
-            (today, args.days, json.dumps(ghost), json.dumps(plausible), json.dumps(gsc)),
+            "INSERT OR REPLACE INTO snapshots (date, days, ghost, plausible, gsc, suggest) VALUES (?, ?, ?, ?, ?, ?)",
+            (today, args.days, json.dumps(ghost), json.dumps(plausible), json.dumps(gsc), json.dumps(suggest)),
         )
         conn.commit()
         conn.close()
