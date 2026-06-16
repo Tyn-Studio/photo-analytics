@@ -1154,7 +1154,10 @@ def main():
 
     html = generate_html(snapshots)
     OUTPUT.write_text(html)
-    print(f"Dashboard written to {OUTPUT} ({len(snapshots)} snapshots)", file=sys.stderr)
+    # Also write as index.html for GitHub Pages
+    index_path = Path(__file__).parent / "index.html"
+    index_path.write_text(html)
+    print(f"Dashboard written to {OUTPUT} + {index_path} ({len(snapshots)} snapshots)", file=sys.stderr)
 
 
 if __name__ == "__main__":

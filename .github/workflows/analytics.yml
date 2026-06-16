@@ -36,6 +36,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/analytics.db dashboard.html
+          git add data/analytics.db dashboard.html index.html
           git diff --cached --quiet || git commit -m "analytics: $(date +%Y-%m-%d)"
           git push
