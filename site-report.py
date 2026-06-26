@@ -48,9 +48,26 @@ PLAUSIBLE_BASE = "https://plausible.io"
 
 # --- Ghost ---
 
+def ghst_auth_args() -> list[str]:
+    """Build --url/--staff-token override flags from env vars when present.
+
+    Locally these are unset, so ghst falls back to its keychain config.
+    In CI (GitHub Actions) there's no config, so GHOST_URL and
+    GHOST_STAFF_TOKEN must be supplied for stats calls to authenticate.
+    """
+    args = []
+    url = os.getenv("GHOST_URL", "")
+    token = os.getenv("GHOST_STAFF_TOKEN", "")
+    if url:
+        args += ["--url", url]
+    if token:
+        args += ["--staff-token", token]
+    return args
+
+
 def run_ghst(args: list[str]) -> dict | None:
     result = subprocess.run(
-        ["ghst"] + args + ["--json"],
+        ["ghst"] + args + ghst_auth_args() + ["--json"],
         capture_output=True, text=True
     )
     if result.returncode != 0:
@@ -88,7 +105,8 @@ def get_ghost_data(days: int) -> dict:
                 continue
             try:
                 r = subprocess.run(
-                    ["ghst", "api", f"posts/{pid}", "--query", "include=tags&fields=title,tags"],
+                    ["ghst", "api", f"posts/{pid}", "--query", "include=tags&fields=title,tags"]
+                    + ghst_auth_args(),
                     capture_output=True, text=True
                 )
                 if r.returncode == 0 and r.stdout.strip():
