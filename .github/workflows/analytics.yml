@@ -11,6 +11,14 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    env:
+      PLAUSIBLE_API_KEY: ${{ secrets.PLAUSIBLE_API_KEY }}
+      PLAUSIBLE_SITE_ID: ${{ secrets.PLAUSIBLE_SITE_ID }}
+      GSC_CLIENT_ID: ${{ secrets.GSC_CLIENT_ID }}
+      GSC_CLIENT_SECRET: ${{ secrets.GSC_CLIENT_SECRET }}
+      GSC_REFRESH_TOKEN: ${{ secrets.GSC_REFRESH_TOKEN }}
+      GHOST_URL: ${{ secrets.GHOST_URL }}
+      GHOST_STAFF_TOKEN: ${{ secrets.GHOST_STAFF_TOKEN }}
     steps:
       - uses: actions/checkout@v7
 
@@ -23,16 +31,19 @@ jobs:
       - name: Install ghst CLI
         run: npm install -g @tryghost/ghst
 
+      # --days 1 stores a true single-day snapshot. Each metric must be one
+      # day's value so report.py / the dashboard can sum across days correctly
+      # (rolling windows were being summed and overcounted ~8x).
       - name: Collect analytics data
-        run: uv run site-report.py --days 7 --save
-        env:
-          PLAUSIBLE_API_KEY: ${{ secrets.PLAUSIBLE_API_KEY }}
-          PLAUSIBLE_SITE_ID: ${{ secrets.PLAUSIBLE_SITE_ID }}
-          GSC_CLIENT_ID: ${{ secrets.GSC_CLIENT_ID }}
-          GSC_CLIENT_SECRET: ${{ secrets.GSC_CLIENT_SECRET }}
-          GSC_REFRESH_TOKEN: ${{ secrets.GSC_REFRESH_TOKEN }}
-          GHOST_URL: ${{ secrets.GHOST_URL }}
-          GHOST_STAFF_TOKEN: ${{ secrets.GHOST_STAFF_TOKEN }}
+        run: uv run site-report.py --days 1 --save
+
+      # Self-healing true-up: rebuild Plausible + GSC daily values (corrects the
+      # GSC ~2-3 day reporting lag on recent snapshots) and fill any member gaps.
+      # Both are idempotent.
+      - name: True up daily history
+        run: |
+          uv run backfill-daily.py
+          uv run backfill-members.py
 
       - name: Generate dashboard
         run: uv run dashboard.py
