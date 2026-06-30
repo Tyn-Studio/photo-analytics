@@ -307,10 +307,15 @@ def get_gsc_data(days: int) -> dict:
     data = {}
 
     try:
+        # dataState "all" includes Google's "fresh" (partial, not-yet-finalised)
+        # data for the most recent 2-3 days. Without it GSC only returns
+        # finalised data, leaving recent days empty -> stored as 0 -> the chart
+        # shows a false cliff. Fresh values get revised as they settle; the
+        # daily self-healing backfill re-pulls and converges them to final.
         # Site totals
         r = service.searchanalytics().query(
             siteUrl=SITE_URL,
-            body={"startDate": start_date, "endDate": end_date}
+            body={"startDate": start_date, "endDate": end_date, "dataState": "all"}
         ).execute()
         data["totals"] = r["rows"][0] if r.get("rows") else {}
 
@@ -319,7 +324,7 @@ def get_gsc_data(days: int) -> dict:
             siteUrl=SITE_URL,
             body={
                 "startDate": start_date, "endDate": end_date,
-                "dimensions": ["query"], "rowLimit": 25,
+                "dimensions": ["query"], "rowLimit": 25, "dataState": "all",
             }
         ).execute()
         data["queries"] = r.get("rows", [])
@@ -329,7 +334,7 @@ def get_gsc_data(days: int) -> dict:
             siteUrl=SITE_URL,
             body={
                 "startDate": start_date, "endDate": end_date,
-                "dimensions": ["page"], "rowLimit": 25,
+                "dimensions": ["page"], "rowLimit": 25, "dataState": "all",
             }
         ).execute()
         data["pages"] = r.get("rows", [])

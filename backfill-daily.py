@@ -153,9 +153,13 @@ def gsc_daily(min_date, max_date):
     svc = build("searchconsole", "v1", credentials=creds)
 
     def query(dimensions, limit=25000):
+        # dataState "all" includes "fresh" (partial) data for the most recent
+        # 2-3 days that GSC hasn't finalised yet — otherwise those days come
+        # back empty and get zero-filled, showing a false drop. Re-pulled daily,
+        # so fresh values converge to final automatically.
         return svc.searchanalytics().query(siteUrl=GSC_SITE, body={
             "startDate": min_date, "endDate": max_date,
-            "dimensions": dimensions, "rowLimit": limit,
+            "dimensions": dimensions, "rowLimit": limit, "dataState": "all",
         }).execute().get("rows", [])
 
     # totals per day
