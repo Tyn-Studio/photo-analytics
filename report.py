@@ -113,6 +113,7 @@ def cmd_summary(args):
     members = None
     subscribers = None
     open_rate = None
+    recent_posts = None
     for s in reversed(snaps):
         g = s.get("ghost", {})
         gr = g.get("growth", {})
@@ -123,7 +124,9 @@ def cmd_summary(args):
         if nls:
             subscribers = nls[0].get("subscribers")
             open_rate = nls[0].get("open_rate")
-        if members is not None:
+        if recent_posts is None and g.get("recent_posts", {}).get("posts"):
+            recent_posts = g["recent_posts"]["posts"]
+        if members is not None and recent_posts is not None:
             break
 
     def delta(curr, prev):
@@ -150,6 +153,14 @@ def cmd_summary(args):
     print(f"- Search clicks: {clicks or 'N/A'}")
     print(f"- Avg position: {position or 'N/A'}{delta(position, position_prev) if position and position_prev else ''}")
     print()
+
+    # Recently published (chronological, NOT the views-ranked "top posts" list —
+    # use this, not absence-from-top-posts, to check if something shipped)
+    if recent_posts:
+        print("## Recently Published")
+        for p in recent_posts[:5]:
+            print(f"- {p.get('title', '?')} — {p.get('published_at', '?')}")
+        print()
 
     # Top sources
     if snaps:

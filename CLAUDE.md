@@ -53,6 +53,13 @@ uv run report.py query "SELECT date, json_extract(plausible, '$.aggregate.metric
 - **"How did the latest post do?"** → Run `summary --days 7` + check Ghost post metrics
 - **"Are we growing?"** → Run `trends` to compare periods
 - **"Where should I promote?"** → Run `conversions` for source conversion rates
+- **"Did a new issue ship this period?"** → Check the "Recently Published" section of
+  `summary`/`brief` output (`ghost.recent_posts`, sorted by `published_at`). Do **NOT**
+  infer this from absence in `ghost.posts.posts` — that list is ranked by web visits
+  within the stats range and capped to a handful of entries, so a just-published post
+  with little traffic yet can be missing from it even though it shipped. This caused a
+  wrong weekly report (post #046 read as "not published" when it had been live for
+  several days but hadn't cracked the top-viewed list).
 
 ## Database Schema
 
@@ -86,7 +93,12 @@ CREATE TABLE snapshots (
 **Ghost:**
 - `ghost.growth.summary` = {total_members, member_delta, paid_members, ...}
 - `ghost.email.newsletters[0]` = {open_rate, click_rate, subscribers, sent_posts, recipients, opened, clicked}
-- `ghost.posts.posts[]` = {title, views, open_rate, click_rate, members, tags[], sent_count, ...}
+- `ghost.posts.posts[]` = {title, views, open_rate, click_rate, members, tags[], sent_count, ...} —
+  **ranked by web visits within the stats range, capped to a handful of results.** Use
+  for "top performing posts", never to check whether something new was published.
+- `ghost.recent_posts.posts[]` = {title, slug, published_at, status} — actual 5 most
+  recently published posts, sorted by `published_at` descending. Use this to check
+  publish recency.
 
 **Google Suggest:**
 - `suggest` = {"seed keyword": ["suggestion1", "suggestion2", ...]}

@@ -92,7 +92,16 @@ def get_ghost_data(days: int) -> dict:
     data = {
         "overview": run_ghst(["stats", "overview", "--range", r]),
         "web": run_ghst(["stats", "web", "--range", r]),
+        # NOTE: "stats posts" ranks by web visits within the range and is
+        # capped to a handful of results. A just-published post with little
+        # traffic yet can be absent from it — don't use its absence to infer
+        # "nothing new was published." Use "recent_posts" below for that.
         "posts": run_ghst(["stats", "posts", "--range", r]),
+        "recent_posts": run_ghst(
+            ["api", "posts", "--query",
+             "order=published_at desc&limit=5&filter=status:published"
+             "&fields=title,slug,published_at,status"]
+        ),
         "email": run_ghst(["stats", "email", "--range", r]),
         "growth": run_ghst(["stats", "growth", "--range", r]),
     }
