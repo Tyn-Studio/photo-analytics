@@ -97,10 +97,14 @@ def get_ghost_data(days: int) -> dict:
         # traffic yet can be absent from it — don't use its absence to infer
         # "nothing new was published." Use "recent_posts" below for that.
         "posts": run_ghst(["stats", "posts", "--range", r]),
+        # ghst's `--query` is variadic (one key=value per arg) — a single
+        # "&"-joined string is parsed as one pair with a garbage value,
+        # so the Admin API rejects it and this call has been failing since
+        # at least mid-August.
         "recent_posts": run_ghst(
             ["api", "posts", "--query",
-             "order=published_at desc&limit=5&filter=status:published"
-             "&fields=title,slug,published_at,status"]
+             "order=published_at desc", "limit=5", "filter=status:published",
+             "fields=title,slug,published_at,status"]
         ),
         "email": run_ghst(["stats", "email", "--range", r]),
         "growth": run_ghst(["stats", "growth", "--range", r]),
