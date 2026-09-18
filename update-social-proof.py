@@ -89,9 +89,13 @@ def main() -> None:
         sys.exit(f"implausible stats (readers={readers}, countries={countries}); "
                  "refusing to update counters")
 
+    def plus(n: int) -> str:
+        """Round down to the nearest ten: 95 -> '90+'. Exact below 10."""
+        return f"{n // 10 * 10}+" if n >= 10 else str(n)
+
     wanted = {
-        "social_proof_1": f"{readers} readers",
-        "social_proof_2": f"{countries} countries",
+        "social_proof_1": f"{plus(readers)} readers",
+        "social_proof_2": f"{plus(countries)} countries",
         "social_proof_3": f"{issues} issues",
     }
 
