@@ -48,6 +48,11 @@ jobs:
       - name: Generate dashboard
         run: uv run dashboard.py
 
+      # Refresh the homepage hero counters (readers / countries / issues)
+      # in the Contacto theme's custom settings. Idempotent.
+      - name: Update site social-proof counters
+        run: uv run update-social-proof.py
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
